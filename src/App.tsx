@@ -4,6 +4,8 @@ import { CheckCircle2, Circle, LogOut, Plus, Trash2, User } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import Auth from './components/Auth';
 
+/* Added a comment line*/
+
 interface Task {
   id: string;
   title: string;
