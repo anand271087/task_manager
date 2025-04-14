@@ -5,6 +5,7 @@ import { supabase } from './lib/supabase';
 import Auth from './components/Auth';
 
 /* Added a comment line*/
+/*Added one more comment lines */
 
 interface Task {
   id: string;
