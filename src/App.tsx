@@ -2,8 +2,9 @@ import React from 'react';
 import { CheckSquare } from 'lucide-react';
 import Login from './components/Login';
 import Signup from './components/Signup';
+import Dashboard from './components/Dashboard';
 
-type Page = 'home' | 'login' | 'signup';
+type Page = 'home' | 'login' | 'signup' | 'dashboard';
 
 function App() {
   const [currentPage, setCurrentPage] = React.useState<Page>('home');
@@ -14,6 +15,10 @@ function App() {
 
   if (currentPage === 'signup') {
     return <Signup onBack={() => setCurrentPage('home')} />;
+  }
+
+  if (currentPage === 'dashboard') {
+    return <Dashboard onBack={() => setCurrentPage('home')} />;
   }
 
   return (
@@ -58,7 +63,10 @@ function App() {
               Signup
             </button>
             
-            <button className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-sky-300">
+            <button 
+              onClick={() => setCurrentPage('dashboard')}
+              className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-sky-300"
+            >
               Go to Dashboard
             </button>
           </div>
