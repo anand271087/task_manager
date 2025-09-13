@@ -1,7 +1,16 @@
 import React from 'react';
 import { CheckSquare } from 'lucide-react';
+import Login from './components/Login';
+
+type Page = 'home' | 'login';
 
 function App() {
+  const [currentPage, setCurrentPage] = React.useState<Page>('home');
+
+  if (currentPage === 'login') {
+    return <Login onBack={() => setCurrentPage('home')} />;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-sky-100 via-blue-50 to-white flex flex-col">
       {/* Header with logo */}
@@ -30,7 +39,10 @@ function App() {
 
           {/* Action buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center max-w-md mx-auto">
-            <button className="w-full sm:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-300">
+            <button 
+              onClick={() => setCurrentPage('login')}
+              className="w-full sm:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-300"
+            >
               Login
             </button>
             
