@@ -1,14 +1,19 @@
 import React from 'react';
 import { CheckSquare } from 'lucide-react';
 import Login from './components/Login';
+import Signup from './components/Signup';
 
-type Page = 'home' | 'login';
+type Page = 'home' | 'login' | 'signup';
 
 function App() {
   const [currentPage, setCurrentPage] = React.useState<Page>('home');
 
   if (currentPage === 'login') {
     return <Login onBack={() => setCurrentPage('home')} />;
+  }
+
+  if (currentPage === 'signup') {
+    return <Signup onBack={() => setCurrentPage('home')} />;
   }
 
   return (
@@ -46,7 +51,10 @@ function App() {
               Login
             </button>
             
-            <button className="w-full sm:w-auto px-8 py-4 bg-white hover:bg-gray-50 text-gray-900 font-semibold border-2 border-gray-200 hover:border-blue-300 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-300">
+            <button 
+              onClick={() => setCurrentPage('signup')}
+              className="w-full sm:w-auto px-8 py-4 bg-white hover:bg-gray-50 text-gray-900 font-semibold border-2 border-gray-200 hover:border-blue-300 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-300"
+            >
               Signup
             </button>
             
