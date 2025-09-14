@@ -1,5 +1,6 @@
 import React from 'react';
 import { CheckSquare } from 'lucide-react';
+import { useAuth } from './hooks/useAuth';
 import Login from './components/Login';
 import Signup from './components/Signup';
 import Dashboard from './components/Dashboard';
@@ -8,13 +9,31 @@ type Page = 'home' | 'login' | 'signup' | 'dashboard';
 
 function App() {
   const [currentPage, setCurrentPage] = React.useState<Page>('home');
+  const { user, loading } = useAuth();
+
+  // Show loading spinner while checking auth state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-sky-100 via-blue-50 to-white flex items-center justify-center">
+        <div className="text-center">
+          <CheckSquare className="h-12 w-12 text-blue-600 mx-auto mb-4 animate-pulse" />
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If user is authenticated and trying to access login/signup, redirect to dashboard
+  if (user && (currentPage === 'login' || currentPage === 'signup')) {
+    setCurrentPage('dashboard');
+  }
 
   if (currentPage === 'login') {
-    return <Login onBack={() => setCurrentPage('home')} />;
+    return <Login onBack={() => setCurrentPage('home')} onSuccess={() => setCurrentPage('dashboard')} />;
   }
 
   if (currentPage === 'signup') {
-    return <Signup onBack={() => setCurrentPage('home')} />;
+    return <Signup onBack={() => setCurrentPage('home')} onSuccess={() => setCurrentPage('dashboard')} />;
   }
 
   if (currentPage === 'dashboard') {
@@ -49,25 +68,29 @@ function App() {
 
           {/* Action buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center max-w-md mx-auto">
-            <button 
-              onClick={() => setCurrentPage('login')}
-              className="w-full sm:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-300"
-            >
-              Login
-            </button>
-            
-            <button 
-              onClick={() => setCurrentPage('signup')}
-              className="w-full sm:w-auto px-8 py-4 bg-white hover:bg-gray-50 text-gray-900 font-semibold border-2 border-gray-200 hover:border-blue-300 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-300"
-            >
-              Signup
-            </button>
+            {!user ? (
+              <>
+                <button 
+                  onClick={() => setCurrentPage('login')}
+                  className="w-full sm:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-300"
+                >
+                  Login
+                </button>
+                
+                <button 
+                  onClick={() => setCurrentPage('signup')}
+                  className="w-full sm:w-auto px-8 py-4 bg-white hover:bg-gray-50 text-gray-900 font-semibold border-2 border-gray-200 hover:border-blue-300 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-300"
+                >
+                  Signup
+                </button>
+              </>
+            ) : null}
             
             <button 
               onClick={() => setCurrentPage('dashboard')}
               className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-sky-300"
             >
-              Go to Dashboard
+              {user ? 'Go to Dashboard' : 'View Demo'}
             </button>
           </div>
 

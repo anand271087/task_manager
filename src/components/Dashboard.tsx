@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Plus, LogOut, CheckSquare } from 'lucide-react';
+import { ArrowLeft, Plus, LogOut, CheckSquare, User } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
 
 interface DashboardProps {
   onBack: () => void;
 }
 
 function Dashboard({ onBack }: DashboardProps) {
+  const { user, signOut } = useAuth();
   const [tasks, setTasks] = useState([
     'Finish homework',
     'Call John',
     'Buy groceries'
   ]);
   const [newTask, setNewTask] = useState('');
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const handleAddTask = (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,10 +24,16 @@ function Dashboard({ onBack }: DashboardProps) {
     }
   };
 
-  const handleLogout = () => {
-    // Handle logout logic here
-    console.log('Logging out...');
-    onBack();
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await signOut();
+      onBack();
+    } catch (error) {
+      console.error('Error signing out:', error);
+    } finally {
+      setLoggingOut(false);
+    }
   };
 
   return (
@@ -49,9 +58,19 @@ function Dashboard({ onBack }: DashboardProps) {
             <div className="text-center mb-8">
               <div className="flex items-center justify-center mb-4">
                 <CheckSquare className="h-8 w-8 text-blue-600 mr-3" />
-                <h1 className="text-3xl font-bold text-gray-900">Your Tasks</h1>
+                <h1 className="text-3xl font-bold text-gray-900">
+                  {user ? `Welcome, ${user.user_metadata?.full_name || user.email}!` : 'Your Tasks'}
+                </h1>
               </div>
-              <p className="text-gray-600">Manage your daily tasks and stay productive</p>
+              {user && (
+                <div className="flex items-center justify-center space-x-2 text-gray-600 mb-4">
+                  <User className="h-4 w-4" />
+                  <span className="text-sm">{user.email}</span>
+                </div>
+              )}
+              <p className="text-gray-600">
+                {user ? 'Manage your daily tasks and stay productive' : 'This is a demo of the task manager'}
+              </p>
             </div>
 
             {/* Task list */}
@@ -98,13 +117,24 @@ function Dashboard({ onBack }: DashboardProps) {
 
             {/* Logout button */}
             <div className="text-center">
-              <button
-                onClick={handleLogout}
-                className="px-8 py-3 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-gray-300 flex items-center justify-center space-x-2 mx-auto"
-              >
-                <LogOut className="h-5 w-5" />
-                <span>Logout</span>
-              </button>
+              {user ? (
+                <button
+                  onClick={handleLogout}
+                  disabled={loggingOut}
+                  className="px-8 py-3 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:transform-none transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-gray-300 flex items-center justify-center space-x-2 mx-auto"
+                >
+                  <LogOut className="h-5 w-5" />
+                  <span>{loggingOut ? 'Signing out...' : 'Logout'}</span>
+                </button>
+              ) : (
+                <button
+                  onClick={onBack}
+                  className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-300 flex items-center justify-center space-x-2 mx-auto"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                  <span>Back to Home</span>
+                </button>
+              )}
             </div>
           </div>
         </div>

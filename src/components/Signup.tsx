@@ -1,20 +1,88 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Mail, Lock, User } from 'lucide-react';
+import { ArrowLeft, Mail, Lock, User, AlertCircle, CheckCircle } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
 
 interface SignupProps {
   onBack: () => void;
+  onSuccess: () => void;
 }
 
-function Signup({ onBack }: SignupProps) {
+function Signup({ onBack, onSuccess }: SignupProps) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const { signUp } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle signup logic here
-    console.log('Signup attempt:', { name, email, password });
+    setLoading(true);
+    setError(null);
+    setSuccess(false);
+
+    try {
+      const { data, error } = await signUp(email, password, name);
+      
+      if (error) {
+        setError(error.message);
+      } else if (data.user) {
+        if (data.user.email_confirmed_at) {
+          // User is immediately confirmed
+          onSuccess();
+        } else {
+          // User needs to confirm email
+          setSuccess(true);
+        }
+      }
+    } catch (err) {
+      setError('An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  if (success) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-sky-100 via-blue-50 to-white flex flex-col">
+        <header className="w-full p-6">
+          <button
+            onClick={onBack}
+            className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors duration-200"
+          >
+            <ArrowLeft className="h-5 w-5" />
+            <span className="font-medium">Back to Home</span>
+          </button>
+        </header>
+
+        <main className="flex-1 flex items-center justify-center px-6 py-12">
+          <div className="w-full max-w-md">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8 text-center">
+              <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-6" />
+              <h1 className="text-3xl font-bold text-gray-900 mb-4">Check Your Email</h1>
+              <p className="text-gray-600 mb-6">
+                We've sent you a confirmation link at <strong>{email}</strong>. 
+                Please check your email and click the link to activate your account.
+              </p>
+              <button
+                onClick={onBack}
+                className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-300"
+              >
+                Back to Home
+              </button>
+            </div>
+          </div>
+        </main>
+
+        <footer className="w-full p-6 text-center">
+          <p className="text-sm text-gray-500">
+            © 2025 TaskFlow. Built with precision and care.
+          </p>
+        </footer>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-sky-100 via-blue-50 to-white flex flex-col">
@@ -42,6 +110,14 @@ function Signup({ onBack }: SignupProps) {
 
             {/* Signup form */}
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Error message */}
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center space-x-3">
+                  <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
+                  <p className="text-red-700 text-sm">{error}</p>
+                </div>
+              )}
+
               {/* Name field */}
               <div className="space-y-2">
                 <label htmlFor="name" className="block text-sm font-semibold text-gray-700">
@@ -109,9 +185,10 @@ function Signup({ onBack }: SignupProps) {
               <div className="pt-4">
                 <button
                   type="submit"
-                  className="w-full px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-300"
+                  disabled={loading}
+                  className="w-full px-8 py-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:transform-none transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-300"
                 >
-                  Signup
+                  {loading ? 'Creating account...' : 'Create Account'}
                 </button>
               </div>
             </form>

@@ -1,18 +1,37 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Mail, Lock } from 'lucide-react';
+import { ArrowLeft, Mail, Lock, AlertCircle } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
 
 interface LoginProps {
   onBack: () => void;
+  onSuccess: () => void;
 }
 
-function Login({ onBack }: LoginProps) {
+function Login({ onBack, onSuccess }: LoginProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { signIn } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle login logic here
-    console.log('Login attempt:', { email, password });
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { error } = await signIn(email, password);
+      
+      if (error) {
+        setError(error.message);
+      } else {
+        onSuccess();
+      }
+    } catch (err) {
+      setError('An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -41,6 +60,14 @@ function Login({ onBack }: LoginProps) {
 
             {/* Login form */}
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Error message */}
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center space-x-3">
+                  <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
+                  <p className="text-red-700 text-sm">{error}</p>
+                </div>
+              )}
+
               {/* Email field */}
               <div className="space-y-2">
                 <label htmlFor="email" className="block text-sm font-semibold text-gray-700">
@@ -87,9 +114,10 @@ function Login({ onBack }: LoginProps) {
               <div className="pt-4">
                 <button
                   type="submit"
-                  className="w-full px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-300"
+                  disabled={loading}
+                  className="w-full px-8 py-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:transform-none transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-300"
                 >
-                  Login
+                  {loading ? 'Signing in...' : 'Login'}
                 </button>
               </div>
             </form>
