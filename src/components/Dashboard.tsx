@@ -10,7 +10,7 @@ interface DashboardProps {
 
 function Dashboard({ onBack }: DashboardProps) {
   const { user, signOut } = useAuth();
-  const { tasks, subtasks, loading, error, createTask, updateTask, deleteTask } = useTasks();
+  const { tasks, subtasks, loading, error, createTask, createSubtask, updateTask, updateSubtask, deleteTask, deleteSubtask } = useTasks();
   const [newTask, setNewTask] = useState('');
   const [newTaskPriority, setNewTaskPriority] = useState<TaskPriority>('medium');
   const [loggingOut, setLoggingOut] = useState(false);
@@ -47,6 +47,13 @@ function Dashboard({ onBack }: DashboardProps) {
     }
   };
 
+  const handleSubtaskStatusChange = async (subtaskId: string, newStatus: TaskStatus) => {
+    try {
+      await updateSubtask(subtaskId, { status: newStatus });
+    } catch (error) {
+      console.error('Failed to update subtask status:', error);
+    }
+  };
   const handleDeleteTask = async (taskId: string) => {
     if (window.confirm('Are you sure you want to delete this task?')) {
       try {
@@ -57,6 +64,15 @@ function Dashboard({ onBack }: DashboardProps) {
     }
   };
 
+  const handleDeleteSubtask = async (subtaskId: string) => {
+    if (window.confirm('Are you sure you want to delete this subtask?')) {
+      try {
+        await deleteSubtask(subtaskId);
+      } catch (error) {
+        console.error('Failed to delete subtask:', error);
+      }
+    }
+  };
   const generateSubtasks = async (taskId: string, taskTitle: string) => {
     try {
       setGeneratingSubtasks(taskId);
@@ -93,11 +109,11 @@ function Dashboard({ onBack }: DashboardProps) {
   const saveSubtask = async (parentId: string, subtaskTitle: string) => {
     try {
       setSavingSubtask(`${parentId}-${subtaskTitle}`);
-      await createTask({
+      await createSubtask({
         title: subtaskTitle,
         priority: 'medium',
         status: 'pending',
-        parent_id: parentId,
+        task_id: parentId,
       });
       
       // Remove the saved subtask from suggestions
@@ -361,7 +377,7 @@ function Dashboard({ onBack }: DashboardProps) {
                                   <div className="flex items-center space-x-1 ml-2">
                                     <select
                                       value={subtask.status}
-                                      onChange={(e) => handleStatusChange(subtask.id, e.target.value as TaskStatus)}
+                                      onChange={(e) => handleSubtaskStatusChange(subtask.id, e.target.value as TaskStatus)}
                                       className="text-xs border border-gray-200 rounded px-1 py-0.5 focus:ring-1 focus:ring-blue-100 focus:border-blue-500"
                                     >
                                       <option value="pending">Pending</option>
@@ -369,7 +385,7 @@ function Dashboard({ onBack }: DashboardProps) {
                                       <option value="done">Done</option>
                                     </select>
                                     <button
-                                      onClick={() => handleDeleteTask(subtask.id)}
+                                      onClick={() => handleDeleteSubtask(subtask.id)}
                                       className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors duration-200"
                                       title="Delete subtask"
                                     >
