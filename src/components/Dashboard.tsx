@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Plus, LogOut, CheckSquare, User, Trash2, Edit3, AlertCircle, Loader, Sparkles, Save, Settings } from 'lucide-react';
+import { ArrowLeft, Plus, LogOut, CheckSquare, User, Trash2, Edit3, AlertCircle, Loader, Sparkles, Save, Settings, Search } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useTasks } from '../hooks/useTasks';
 import { TaskPriority, TaskStatus } from '../types/task';
@@ -11,7 +11,7 @@ interface DashboardProps {
 
 function Dashboard({ onBack, onProfile }: DashboardProps) {
   const { user, signOut } = useAuth();
-  const { tasks, subtasks, loading, error, createTask, createSubtask, updateTask, updateSubtask, deleteTask, deleteSubtask } = useTasks();
+  const { tasks, subtasks, loading, error, createTask, createSubtask, updateTask, updateSubtask, deleteTask, deleteSubtask, searchTasks } = useTasks();
   const [newTask, setNewTask] = useState('');
   const [newTaskPriority, setNewTaskPriority] = useState<TaskPriority>('medium');
   const [loggingOut, setLoggingOut] = useState(false);
@@ -19,6 +19,9 @@ function Dashboard({ onBack, onProfile }: DashboardProps) {
   const [generatingSubtasks, setGeneratingSubtasks] = useState<string | null>(null);
   const [suggestedSubtasks, setSuggestedSubtasks] = useState<Record<string, string[]>>({});
   const [savingSubtask, setSavingSubtask] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false);
 
   const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -141,6 +144,21 @@ function Dashboard({ onBack, onProfile }: DashboardProps) {
     }
   };
 
+  const handleSmartSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+
+    try {
+      setSearching(true);
+      const results = await searchTasks(searchQuery);
+      setSearchResults(results);
+    } catch (error) {
+      console.error('Search failed:', error);
+    } finally {
+      setSearching(false);
+    }
+  };
+
   const getPriorityColor = (priority: TaskPriority) => {
     switch (priority) {
       case 'high':
@@ -253,6 +271,96 @@ function Dashboard({ onBack, onProfile }: DashboardProps) {
                 </div>
               </div>
             </form>
+
+            {/* Smart Search */}
+            <form onSubmit={handleSmartSearch} className="mb-8">
+              <div className="space-y-4">
+                <label htmlFor="smartSearch" className="block text-sm font-semibold text-gray-700">
+                  Smart Search
+                </label>
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="relative flex-1">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Search className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      type="text"
+                      id="smartSearch"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 bg-white/50 backdrop-blur-sm placeholder-gray-400"
+                      placeholder="Search tasks by meaning (e.g., 'work meetings', 'home improvement')..."
+                      disabled={searching}
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={searching || !searchQuery.trim()}
+                    className="px-8 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:from-blue-400 disabled:to-purple-400 disabled:cursor-not-allowed text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:transform-none transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-300 flex items-center justify-center space-x-2"
+                  >
+                    {searching ? (
+                      <Loader className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <Search className="h-5 w-5" />
+                    )}
+                    <span>{searching ? 'Searching...' : 'Search'}</span>
+                  </button>
+                </div>
+              </div>
+            </form>
+
+            {/* Search Results */}
+            {searchResults.length > 0 && (
+              <div className="mb-8">
+                <div className="bg-blue-50/80 backdrop-blur-sm rounded-xl border border-blue-200 p-6">
+                  <h3 className="text-lg font-semibold text-blue-900 mb-4 flex items-center space-x-2">
+                    <Search className="h-5 w-5" />
+                    <span>Search Results ({searchResults.length})</span>
+                  </h3>
+                  <div className="space-y-3">
+                    {searchResults.map((result) => (
+                      <div 
+                        key={result.id}
+                        className="bg-white/70 backdrop-blur-sm rounded-lg border border-blue-100 p-4 hover:shadow-md transition-shadow duration-200"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-3 mb-2">
+                              <h4 className={`font-medium ${result.status === 'done' ? 'line-through text-gray-500' : 'text-gray-900'}`}>
+                                {result.title}
+                              </h4>
+                              <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getPriorityColor(result.priority)}`}>
+                                {result.priority}
+                              </span>
+                            </div>
+                            <div className="flex items-center space-x-3">
+                              <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getStatusColor(result.status)}`}>
+                                {result.status.replace('-', ' ')}
+                              </span>
+                              <span className="text-xs text-blue-600 font-medium">
+                                {Math.round(result.similarity * 100)}% match
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {new Date(result.created_at).toLocaleDateString()}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => {
+                      setSearchResults([]);
+                      setSearchQuery('');
+                    }}
+                    className="mt-4 text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    Clear Results
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Task list */}
             <div className="mb-8">

@@ -105,6 +105,27 @@ export function useTasks() {
         [data.id]: [],
       }));
       
+      // Generate embedding for the new task
+      try {
+        const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-embedding`;
+        const headers = {
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+        };
+
+        await fetch(apiUrl, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ 
+            taskId: data.id, 
+            text: data.title 
+          }),
+        });
+      } catch (embeddingError) {
+        console.warn('Failed to generate embedding for task:', embeddingError);
+        // Don't throw error as task creation was successful
+      }
+
       return data;
     } catch (err) {
       console.error('Error creating task:', err);
@@ -182,6 +203,29 @@ export function useTasks() {
         prevTasks.map(task => (task.id === id ? data : task))
       );
       
+      // Generate new embedding if title was updated
+      if (updates.title) {
+        try {
+          const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-embedding`;
+          const headers = {
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json',
+          };
+
+          await fetch(apiUrl, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ 
+              taskId: data.id, 
+              text: data.title 
+            }),
+          });
+        } catch (embeddingError) {
+          console.warn('Failed to update embedding for task:', embeddingError);
+          // Don't throw error as task update was successful
+        }
+      }
+
       return data;
     } catch (err) {
       console.error('Error updating task:', err);
@@ -326,5 +370,39 @@ export function useTasks() {
     deleteTask,
     deleteSubtask,
     refetch: fetchTasks,
+    // Smart search function
+    searchTasks: async (query: string) => {
+      if (!user || !query.trim()) {
+        return [];
+      }
+
+      try {
+        const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/smart-search`;
+        const headers = {
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+        };
+
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ 
+            query: query.trim(),
+            userId: user.id
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Search request failed');
+        }
+
+        const data = await response.json();
+        return data.results || [];
+      } catch (err) {
+        console.error('Error searching tasks:', err);
+        setError(err instanceof Error ? err.message : 'Failed to search tasks');
+        return [];
+      }
+    },
   };
 }
