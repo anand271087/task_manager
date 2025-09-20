@@ -4,8 +4,9 @@ import { useAuth } from './hooks/useAuth';
 import Login from './components/Login';
 import Signup from './components/Signup';
 import Dashboard from './components/Dashboard';
+import ProfilePage from './components/ProfilePage';
 
-type Page = 'home' | 'login' | 'signup' | 'dashboard';
+type Page = 'home' | 'login' | 'signup' | 'dashboard' | 'profile';
 
 function App() {
   const [currentPage, setCurrentPage] = React.useState<Page>('home');
@@ -37,7 +38,11 @@ function App() {
   }
 
   if (currentPage === 'dashboard') {
-    return <Dashboard onBack={() => setCurrentPage('home')} />;
+    return <Dashboard onBack={() => setCurrentPage('home')} onProfile={() => setCurrentPage('profile')} />;
+  }
+
+  if (currentPage === 'profile') {
+    return <ProfilePage onBack={() => setCurrentPage('dashboard')} />;
   }
 
   return (

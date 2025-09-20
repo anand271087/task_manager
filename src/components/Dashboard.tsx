@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Plus, LogOut, CheckSquare, User, Trash2, Edit3, AlertCircle, Loader, Sparkles, Save } from 'lucide-react';
+import { ArrowLeft, Plus, LogOut, CheckSquare, User, Trash2, Edit3, AlertCircle, Loader, Sparkles, Save, Settings } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useTasks } from '../hooks/useTasks';
 import { TaskPriority, TaskStatus } from '../types/task';
 
 interface DashboardProps {
   onBack: () => void;
+  onProfile?: () => void;
 }
 
-function Dashboard({ onBack }: DashboardProps) {
+function Dashboard({ onBack, onProfile }: DashboardProps) {
   const { user, signOut } = useAuth();
   const { tasks, subtasks, loading, error, createTask, createSubtask, updateTask, updateSubtask, deleteTask, deleteSubtask } = useTasks();
   const [newTask, setNewTask] = useState('');
@@ -407,14 +408,25 @@ function Dashboard({ onBack }: DashboardProps) {
             {/* Logout button */}
             <div className="text-center">
               {user ? (
-                <button
-                  onClick={handleLogout}
-                  disabled={loggingOut}
-                  className="px-8 py-3 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:transform-none transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-gray-300 flex items-center justify-center space-x-2 mx-auto"
-                >
-                  <LogOut className="h-5 w-5" />
-                  <span>{loggingOut ? 'Signing out...' : 'Logout'}</span>
-                </button>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                  {onProfile && (
+                    <button
+                      onClick={onProfile}
+                      className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-300 flex items-center justify-center space-x-2"
+                    >
+                      <Settings className="h-5 w-5" />
+                      <span>Profile</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={handleLogout}
+                    disabled={loggingOut}
+                    className="px-8 py-3 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:transform-none transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-gray-300 flex items-center justify-center space-x-2"
+                  >
+                    <LogOut className="h-5 w-5" />
+                    <span>{loggingOut ? 'Signing out...' : 'Logout'}</span>
+                  </button>
+                </div>
               ) : (
                 <button
                   onClick={onBack}
