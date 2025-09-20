@@ -11,7 +11,7 @@ interface DashboardProps {
 
 function Dashboard({ onBack, onProfile }: DashboardProps) {
   const { user, signOut } = useAuth();
-  const { tasks, subtasks, loading, error, createTask, createSubtask, updateTask, updateSubtask, deleteTask, deleteSubtask, searchTasks } = useTasks();
+  const { tasks, subtasks, loading, error, createTask, createSubtask, updateTask, updateSubtask, deleteTask, deleteSubtask, searchTasks, generateAllEmbeddings } = useTasks();
   const [newTask, setNewTask] = useState('');
   const [newTaskPriority, setNewTaskPriority] = useState<TaskPriority>('medium');
   const [loggingOut, setLoggingOut] = useState(false);
@@ -22,6 +22,7 @@ function Dashboard({ onBack, onProfile }: DashboardProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
+  const [generatingEmbeddings, setGeneratingEmbeddings] = useState(false);
 
   const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -152,10 +153,29 @@ function Dashboard({ onBack, onProfile }: DashboardProps) {
       setSearching(true);
       const results = await searchTasks(searchQuery);
       setSearchResults(results);
+      
+      // If no results found, suggest generating embeddings
+      if (results.length === 0 && tasks.length > 0) {
+        console.log('No search results found. You may need to generate embeddings for existing tasks.');
+      }
     } catch (error) {
       console.error('Search failed:', error);
     } finally {
       setSearching(false);
+    }
+  };
+
+  const handleGenerateEmbeddings = async () => {
+    try {
+      setGeneratingEmbeddings(true);
+      const result = await generateAllEmbeddings();
+      console.log('Embeddings generated:', result);
+      alert(`Successfully generated embeddings for ${result.processed} tasks!`);
+    } catch (error) {
+      console.error('Failed to generate embeddings:', error);
+      alert('Failed to generate embeddings. Please try again.');
+    } finally {
+      setGeneratingEmbeddings(false);
     }
   };
 
@@ -306,6 +326,27 @@ function Dashboard({ onBack, onProfile }: DashboardProps) {
                     <span>{searching ? 'Searching...' : 'Search'}</span>
                   </button>
                 </div>
+                
+                {/* Generate Embeddings Button - Show only if user has tasks but search returns no results */}
+                {tasks.length > 0 && searchResults.length === 0 && searchQuery && !searching && (
+                  <div className="mt-4 text-center">
+                    <button
+                      onClick={handleGenerateEmbeddings}
+                      disabled={generatingEmbeddings}
+                      className="px-6 py-2 bg-yellow-500 hover:bg-yellow-600 disabled:bg-yellow-400 disabled:cursor-not-allowed text-white font-medium rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 disabled:transform-none transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-yellow-300 flex items-center justify-center space-x-2 mx-auto"
+                    >
+                      {generatingEmbeddings ? (
+                        <Loader className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-4 w-4" />
+                      )}
+                      <span>{generatingEmbeddings ? 'Generating...' : 'Generate Search Index'}</span>
+                    </button>
+                    <p className="text-xs text-gray-600 mt-2">
+                      No results found? Generate search index for existing tasks to enable smart search.
+                    </p>
+                  </div>
+                )}
               </div>
             </form>
 
