@@ -404,36 +404,5 @@ export function useTasks() {
         return [];
       }
     },
-    // Generate embeddings for all existing tasks
-    generateAllEmbeddings: async () => {
-      if (!user) {
-        throw new Error('User must be authenticated');
-      }
-
-      try {
-        const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-all-embeddings`;
-        const headers = {
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          'Content-Type': 'application/json',
-        };
-
-        const response = await fetch(apiUrl, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({ userId: user.id }),
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to generate embeddings');
-        }
-
-        const data = await response.json();
-        return data;
-      } catch (err) {
-        console.error('Error generating embeddings:', err);
-        setError(err instanceof Error ? err.message : 'Failed to generate embeddings');
-        throw err;
-      }
-    },
   };
 }

@@ -96,7 +96,7 @@ Deno.serve(async (req: Request) => {
       'search_tasks_by_similarity',
       {
         query_embedding: queryEmbedding,
-        match_threshold: 0.5,
+        match_threshold: 0.7,
         match_count: 5,
         user_id: userId,
       }
