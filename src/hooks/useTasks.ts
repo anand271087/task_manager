@@ -5,6 +5,7 @@ import { useAuth } from './useAuth';
 
 export function useTasks() {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [subtasks, setSubtasks] = useState<Record<string, Task[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
@@ -24,7 +25,8 @@ export function useTasks() {
       const { data, error } = await supabase
         .from('tasks')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', user.id) 
+        .is('parent_id', null)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -32,6 +34,32 @@ export function useTasks() {
       }
 
       setTasks(data || []);
+
+      // Fetch subtasks for each main task
+      if (data && data.length > 0) {
+        const subtaskPromises = data.map(async (task) => {
+          const { data: taskSubtasks, error: subtaskError } = await supabase
+            .from('tasks')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('parent_id', task.id)
+            .order('created_at', { ascending: false });
+
+          if (subtaskError) {
+            console.error('Error fetching subtasks:', subtaskError);
+            return { taskId: task.id, subtasks: [] };
+          }
+
+          return { taskId: task.id, subtasks: taskSubtasks || [] };
+        });
+
+        const subtaskResults = await Promise.all(subtaskPromises);
+        const subtaskMap: Record<string, Task[]> = {};
+        subtaskResults.forEach(({ taskId, subtasks }) => {
+          subtaskMap[taskId] = subtasks;
+        });
+        setSubtasks(subtaskMap);
+      }
     } catch (err) {
       console.error('Error fetching tasks:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch tasks');
@@ -65,7 +93,20 @@ export function useTasks() {
       }
 
       // Add the new task to the local state
-      setTasks(prevTasks => [data, ...prevTasks]);
+      if (data.parent_id) {
+        // This is a subtask
+        setSubtasks(prevSubtasks => ({
+          ...prevSubtasks,
+          [data.parent_id!]: [data, ...(prevSubtasks[data.parent_id!] || [])],
+        }));
+      } else {
+        // This is a main task
+        setTasks(prevTasks => [data, ...prevTasks]);
+        setSubtasks(prevSubtasks => ({
+          ...prevSubtasks,
+          [data.id]: [],
+        }));
+      }
       return data;
     } catch (err) {
       console.error('Error creating task:', err);
@@ -100,9 +141,20 @@ export function useTasks() {
       }
 
       // Update the task in local state
-      setTasks(prevTasks =>
-        prevTasks.map(task => (task.id === id ? data : task))
-      );
+      if (data.parent_id) {
+        // This is a subtask
+        setSubtasks(prevSubtasks => ({
+          ...prevSubtasks,
+          [data.parent_id!]: prevSubtasks[data.parent_id!]?.map(task => 
+            task.id === id ? data : task
+          ) || [],
+        }));
+      } else {
+        // This is a main task
+        setTasks(prevTasks =>
+          prevTasks.map(task => (task.id === id ? data : task))
+        );
+      }
       return data;
     } catch (err) {
       console.error('Error updating task:', err);
@@ -131,8 +183,30 @@ export function useTasks() {
         throw error;
       }
 
-      // Remove the task from local state
-      setTasks(prevTasks => prevTasks.filter(task => task.id !== id));
+      // Find the task to determine if it's a main task or subtask
+      const mainTask = tasks.find(task => task.id === id);
+      const isMainTask = !!mainTask;
+
+      if (isMainTask) {
+        // Remove main task and its subtasks
+        setTasks(prevTasks => prevTasks.filter(task => task.id !== id));
+        setSubtasks(prevSubtasks => {
+          const newSubtasks = { ...prevSubtasks };
+          delete newSubtasks[id];
+          return newSubtasks;
+        });
+      } else {
+        // Remove subtask
+        const parentId = Object.keys(subtasks).find(parentId =>
+          subtasks[parentId].some(subtask => subtask.id === id)
+        );
+        if (parentId) {
+          setSubtasks(prevSubtasks => ({
+            ...prevSubtasks,
+            [parentId]: prevSubtasks[parentId].filter(task => task.id !== id),
+          }));
+        }
+      }
     } catch (err) {
       console.error('Error deleting task:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete task';
@@ -148,6 +222,7 @@ export function useTasks() {
 
   return {
     tasks,
+    subtasks,
     loading,
     error,
     createTask,

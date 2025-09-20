@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Plus, LogOut, CheckSquare, User, Trash2, Edit3, AlertCircle, Loader } from 'lucide-react';
+import { ArrowLeft, Plus, LogOut, CheckSquare, User, Trash2, Edit3, AlertCircle, Loader, Sparkles, Save } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useTasks } from '../hooks/useTasks';
 import { TaskPriority, TaskStatus } from '../types/task';
@@ -10,11 +10,14 @@ interface DashboardProps {
 
 function Dashboard({ onBack }: DashboardProps) {
   const { user, signOut } = useAuth();
-  const { tasks, loading, error, createTask, updateTask, deleteTask } = useTasks();
+  const { tasks, subtasks, loading, error, createTask, updateTask, deleteTask } = useTasks();
   const [newTask, setNewTask] = useState('');
   const [newTaskPriority, setNewTaskPriority] = useState<TaskPriority>('medium');
   const [loggingOut, setLoggingOut] = useState(false);
   const [addingTask, setAddingTask] = useState(false);
+  const [generatingSubtasks, setGeneratingSubtasks] = useState<string | null>(null);
+  const [suggestedSubtasks, setSuggestedSubtasks] = useState<Record<string, string[]>>({});
+  const [savingSubtask, setSavingSubtask] = useState<string | null>(null);
 
   const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,6 +54,61 @@ function Dashboard({ onBack }: DashboardProps) {
       } catch (error) {
         console.error('Failed to delete task:', error);
       }
+    }
+  };
+
+  const generateSubtasks = async (taskId: string, taskTitle: string) => {
+    try {
+      setGeneratingSubtasks(taskId);
+      
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-subtasks`;
+      const headers = {
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+      };
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ taskTitle }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate subtasks');
+      }
+
+      const data = await response.json();
+      setSuggestedSubtasks(prev => ({
+        ...prev,
+        [taskId]: data.subtasks || [],
+      }));
+    } catch (error) {
+      console.error('Failed to generate subtasks:', error);
+      setError('Failed to generate subtasks. Please try again.');
+    } finally {
+      setGeneratingSubtasks(null);
+    }
+  };
+
+  const saveSubtask = async (parentId: string, subtaskTitle: string) => {
+    try {
+      setSavingSubtask(`${parentId}-${subtaskTitle}`);
+      await createTask({
+        title: subtaskTitle,
+        priority: 'medium',
+        status: 'pending',
+        parent_id: parentId,
+      });
+      
+      // Remove the saved subtask from suggestions
+      setSuggestedSubtasks(prev => ({
+        ...prev,
+        [parentId]: prev[parentId]?.filter(s => s !== subtaskTitle) || [],
+      }));
+    } catch (error) {
+      console.error('Failed to save subtask:', error);
+    } finally {
+      setSavingSubtask(null);
     }
   };
 
@@ -195,42 +253,177 @@ function Dashboard({ onBack }: DashboardProps) {
                 ) : (
                   <div className="space-y-4">
                     {tasks.map((task) => (
-                      <div
+                      <div 
                         key={task.id}
-                        className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-100 hover:shadow-md transition-shadow duration-200"
+                        className="bg-white rounded-lg border border-gray-100 hover:shadow-md transition-shadow duration-200"
                       >
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3 mb-2">
-                            <h3 className={`font-medium ${task.status === 'done' ? 'line-through text-gray-500' : 'text-gray-900'}`}>
-                              {task.title}
-                            </h3>
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getPriorityColor(task.priority)}`}>
-                              {task.priority}
-                            </span>
+                        {/* Main task */}
+                        <div className="flex items-center justify-between p-4">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-3 mb-2">
+                              <h3 className={`font-medium ${task.status === 'done' ? 'line-through text-gray-500' : 'text-gray-900'}`}>
+                                {task.title}
+                              </h3>
+                              <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getPriorityColor(task.priority)}`}>
+                                {task.priority}
+                              </span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getStatusColor(task.status)}`}>
+                                {task.status.replace('-', ' ')}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {new Date(task.created_at).toLocaleDateString()}
+                              </span>
+                            </div>
                           </div>
-                          <div className="flex items-center space-x-2">
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getStatusColor(task.status)}`}>
-                              {task.status.replace('-', ' ')}
-                            </span>
-                            <span className="text-xs text-gray-500">
-                              {new Date(task.created_at).toLocaleDateString()}
-                            </span>
+                          <div className="flex items-center space-x-2 ml-4">
+                            <select
+                              value={task.status}
+                              onChange={(e) => handleStatusChange(task.id, e.target.value as TaskStatus)}
+                              className="text-sm border border-gray-200 rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-100 focus:border-blue-500"
+                            >
+                              <option value="pending">Pending</option>
+                              <option value="in-progress">In Progress</option>
+                              <option value="done">Done</option>
+                            </select>
+                            <button
+                              onClick={() => handleDeleteTask(task.id)}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
+                              title="Delete task"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
                           </div>
                         </div>
-                        <div className="flex items-center space-x-2 ml-4">
-                          <select
-                            value={task.status}
-                            onChange={(e) => handleStatusChange(task.id, e.target.value as TaskStatus)}
-                            className="text-sm border border-gray-200 rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-100 focus:border-blue-500"
-                          >
-                            <option value="pending">Pending</option>
-                            <option value="in-progress">In Progress</option>
-                            <option value="done">Done</option>
-                          </select>
+
+                        {/* Generate subtasks button */}
+                        <div className="px-4 pb-2">
                           <button
-                            onClick={() => handleDeleteTask(task.id)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
-                            title="Delete task"
+                            onClick={() => generateSubtasks(task.id, task.title)}
+                            disabled={generatingSubtasks === task.id}
+                            className="flex items-center space-x-2 px-3 py-2 text-sm bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 disabled:from-purple-400 disabled:to-blue-400 disabled:cursor-not-allowed text-white font-medium rounded-lg shadow-sm hover:shadow-md transform hover:-translate-y-0.5 disabled:transform-none transition-all duration-200"
+                          >
+                            {generatingSubtasks === task.id ? (
+                              <Loader className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Sparkles className="h-4 w-4" />
+                            )}
+                            <span>
+                              {generatingSubtasks === task.id ? 'Generating...' : 'Generate Subtasks with AI'}
+                            </span>
+                          </button>
+                        </div>
+
+                        {/* Suggested subtasks */}
+                        {suggestedSubtasks[task.id] && suggestedSubtasks[task.id].length > 0 && (
+                          <div className="px-4 pb-2">
+                            <h4 className="text-sm font-medium text-gray-700 mb-2">Suggested Subtasks:</h4>
+                            <div className="space-y-2">
+                              {suggestedSubtasks[task.id].map((subtask, index) => (
+                                <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                                  <span className="text-sm text-gray-700 flex-1">{subtask}</span>
+                                  <button
+                                    onClick={() => saveSubtask(task.id, subtask)}
+                                    disabled={savingSubtask === `${task.id}-${subtask}`}
+                                    className="ml-2 flex items-center space-x-1 px-2 py-1 text-xs bg-green-600 hover:bg-green-700 disabled:bg-green-400 disabled:cursor-not-allowed text-white font-medium rounded transition-colors duration-200"
+                                  >
+                                    {savingSubtask === `${task.id}-${subtask}` ? (
+                                      <Loader className="h-3 w-3 animate-spin" />
+                                    ) : (
+                                      <Save className="h-3 w-3" />
+                                    )}
+                                    <span>Save</span>
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Existing subtasks */}
+                        {subtasks[task.id] && subtasks[task.id].length > 0 && (
+                          <div className="px-4 pb-4">
+                            <h4 className="text-sm font-medium text-gray-700 mb-2">Subtasks:</h4>
+                            <div className="space-y-2">
+                              {subtasks[task.id].map((subtask) => (
+                                <div key={subtask.id} className="flex items-center justify-between p-2 bg-blue-50 rounded-lg border border-blue-100">
+                                  <div className="flex-1">
+                                    <span className={`text-sm ${subtask.status === 'done' ? 'line-through text-gray-500' : 'text-gray-700'}`}>
+                                      {subtask.title}
+                                    </span>
+                                    <div className="flex items-center space-x-2 mt-1">
+                                      <span className={`px-1.5 py-0.5 text-xs font-medium rounded border ${getStatusColor(subtask.status)}`}>
+                                        {subtask.status.replace('-', ' ')}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center space-x-1 ml-2">
+                                    <select
+                                      value={subtask.status}
+                                      onChange={(e) => handleStatusChange(subtask.id, e.target.value as TaskStatus)}
+                                      className="text-xs border border-gray-200 rounded px-1 py-0.5 focus:ring-1 focus:ring-blue-100 focus:border-blue-500"
+                                    >
+                                      <option value="pending">Pending</option>
+                                      <option value="in-progress">In Progress</option>
+                                      <option value="done">Done</option>
+                                    </select>
+                                    <button
+                                      onClick={() => handleDeleteTask(subtask.id)}
+                                      className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors duration-200"
+                                      title="Delete subtask"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Logout button */}
+            <div className="text-center">
+              {user ? (
+                <button
+                  onClick={handleLogout}
+                  disabled={loggingOut}
+                  className="px-8 py-3 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:transform-none transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-gray-300 flex items-center justify-center space-x-2 mx-auto"
+                >
+                  <LogOut className="h-5 w-5" />
+                  <span>{loggingOut ? 'Signing out...' : 'Logout'}</span>
+                </button>
+              ) : (
+                <button
+                  onClick={onBack}
+                  className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-300 flex items-center justify-center space-x-2 mx-auto"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                  <span>Back to Home</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="w-full p-6 text-center">
+        <p className="text-sm text-gray-500">
+          © 2025 TaskFlow. Built with precision and care.
+        </p>
+      </footer>
+    </div>
+  );
+}
+
+export default Dashboard;
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
